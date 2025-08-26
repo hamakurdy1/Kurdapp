@@ -3,85 +3,83 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>تۆماری شەکرە – رسم بیانی</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>بەرنامەی تۆماری شەکرە</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
-
     body {
-      font-family: 'Cairo', sans-serif;
-      background: linear-gradient(to bottom, #e0f7fa, #ffffff);
+      font-family: 'Arial', sans-serif;
+      background-color: #f0f4f8;
       margin: 0;
       padding: 1rem;
       color: #333;
     }
-
     h1 {
       text-align: center;
-      color: #00796b;
-      margin-bottom: 1rem;
-      font-size: 1.8rem;
-      text-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      color: #2c3e50;
     }
-
     .container {
-      max-width: 550px;
+      max-width: 500px;
       margin: auto;
-      background: #ffffffcc;
-      padding: 1.5rem;
-      border-radius: 1.2rem;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      background: white;
+      padding: 1rem;
+      border-radius: 1rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-
     label, select, input {
       display: block;
       width: 100%;
-      margin-bottom: 0.8rem;
+      margin-bottom: 1rem;
       font-size: 1rem;
     }
-
     input, select {
-      padding: 0.7rem;
-      border: 1px solid #b2dfdb;
-      border-radius: 0.7rem;
-      transition: all 0.2s ease;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
     }
-
-    input:focus, select:focus {
-      outline: none;
-      border-color: #00796b;
-      box-shadow: 0 0 8px rgba(0,121,107,0.3);
-    }
-
     .btn {
-      background-color: #00796b;
+      background-color: #3498db;
       color: white;
       border: none;
-      padding: 0.9rem;
+      padding: 0.8rem;
       width: 100%;
       border-radius: 0.8rem;
       font-size: 1.1rem;
       margin-top: 0.5rem;
-      transition: all 0.3s ease-in-out;
+      transition: all 0.2s ease-in-out;
       cursor: pointer;
     }
-
-    .btn:hover {
-      background-color: #004d40;
-      transform: translateY(-2px);
-    }
-
     .btn:active {
       transform: scale(0.97);
-      opacity: 0.9;
+      opacity: 0.85;
     }
-
-    canvas {
-      margin-top: 2rem;
-      border-radius: 1rem;
-      background: #ffffffdd;
-      padding: 1rem;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    .btn.delete-all {
+      background-color: #e74c3c;
+    }
+    .records {
+      margin-top: 1rem;
+    }
+    .record {
+      padding: 0.7rem;
+      border-bottom: 1px solid #ddd;
+      font-size: 0.95rem;
+      position: relative;
+    }
+    .record span {
+      display: block;
+    }
+    .low { color: orange; }
+    .prediabetes { color: #d35400; }
+    .normal { color: green; }
+    .high { color: red; }
+    .delete-single {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      background: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -95,7 +93,7 @@
       <option value="healthy">نەخێر</option>
     </select>
 
-    <label>بە(mg/dL) بنووسه:</label>
+    <label>بە(mg/dL)بنووسه:</label>
     <input type="number" id="sugar" placeholder="نموونە: 110" />
 
     <label>دۆخ:</label>
@@ -105,18 +103,16 @@
     </select>
 
     <button class="btn" onclick="saveReading()">💾 هەڵگردن</button>
-    <button class="btn" onclick="clearAll()">🗑️ سڕینەوەی هەموو تۆمارەکان</button>
+    <button class="btn delete-all" onclick="clearAll()">🗑️ سڕینەوەی هەموو تۆمارەکان</button>
 
-    <canvas id="sugarChart" width="400" height="250"></canvas>
+    <div class="records" id="records"></div>
   </div>
 
   <script>
     const sugarInput = document.getElementById("sugar");
     const typeInput = document.getElementById("type");
     const personTypeInput = document.getElementById("personType");
-    const ctx = document.getElementById('sugarChart').getContext('2d');
-
-    let chart;
+    const recordsDiv = document.getElementById("records");
 
     function getClassification(value, type, personType) {
       value = parseInt(value);
@@ -125,12 +121,12 @@
       if (personType === "healthy") {
         if (type === "fasting") {
           if (value < 70) result = "low";
-          else if (value <= 99) result = "normal";
+          else if (value <= 99) result = "normal"; // دمجنا healthy مع normal
           else if (value <= 125) result = "prediabetes";
           else result = "high";
         } else {
           if (value < 70) result = "low";
-          else if (value < 140) result = "normal";
+          else if (value < 140) result = "normal"; // دمجنا healthy مع normal
           else if (value <= 199) result = "prediabetes";
           else result = "high";
         }
@@ -145,6 +141,7 @@
           else result = "high";
         }
       }
+
       return result;
     }
 
@@ -156,59 +153,67 @@
       if (!value) return alert("تکایه ڕێژەکە بنووسە");
       if (value < 20 || value > 600) return alert("تکایه ڕێژەکە لەنێوان 20 و 600 بنووسه");
 
-      const date = new Date().toLocaleTimeString("ar-EG", {hour: '2-digit', minute:'2-digit'});
-      const record = { value: parseInt(value), date, type, personType };
+      const date = new Date().toLocaleString("ar-EG");
+      const classification = getClassification(value, type, personType);
+
+      const record = {
+        value,
+        type: type === "fasting" ? "بەڕۆژووبوون" : "دووکاتژمێر دوای نان",
+        personType: personType === "healthy" ? "شەکرەی نییە" : "شەکرەی هەیە",
+        date,
+        classification
+      };
 
       let readings = JSON.parse(localStorage.getItem("sugarReadings")) || [];
       readings.push(record);
       localStorage.setItem("sugarReadings", JSON.stringify(readings));
 
       sugarInput.value = "";
-      updateChart();
+      showReadings();
     }
 
-    function updateChart() {
+    function showReadings() {
       const readings = JSON.parse(localStorage.getItem("sugarReadings")) || [];
-      const labels = readings.map(r => r.date);
-      const data = readings.map(r => r.value);
+      recordsDiv.innerHTML = "";
 
-      if(chart) chart.destroy();
-
-      chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'مستوى السكر (mg/dL)',
-            data: data,
-            fill: true,
-            borderColor: '#00796b',
-            backgroundColor: 'rgba(0,121,107,0.2)',
-            tension: 0.3,
-            pointBackgroundColor: '#004d40',
-            pointRadius: 5
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: true, position: 'top' }
-          },
-          scales: {
-            y: { beginAtZero: true, suggestedMax: 250 }
-          }
-        }
+      readings.reverse().forEach((r, i) => {
+        const div = document.createElement("div");
+        // وضعنا اللون بناءً على التصنيف
+        div.className = "record " + r.classification;
+        div.innerHTML = `
+          <span><strong>${r.value} mg/dL</strong> - ${r.type}</span>
+          <span>👤 ${r.personType}</span>
+          <span>📅 ${r.date}</span>
+          <span> ${
+            r.classification === "low"
+              ? "🟠 شەکرەت نزمە"
+              : r.classification === "normal"
+              ? "🟢 شەکرەت ئاساییە"
+              : r.classification === "prediabetes"
+              ? "⚠️ پێش شەکرە"
+              : "🔴 شەکرەت بەرزە"
+          }</span>
+          <button class="delete-single" onclick="deleteReading(${readings.length - 1 - i})">سڕینەوە</button>
+        `;
+        recordsDiv.appendChild(div);
       });
+    }
+
+    function deleteReading(index) {
+      let readings = JSON.parse(localStorage.getItem("sugarReadings")) || [];
+      readings.splice(index, 1);
+      localStorage.setItem("sugarReadings", JSON.stringify(readings));
+      showReadings();
     }
 
     function clearAll() {
       if (confirm("ئایه تۆ دڵنیایی لەسڕینەوەی تەواوی تۆمارەکان؟")) {
         localStorage.removeItem("sugarReadings");
-        updateChart();
+        showReadings();
       }
     }
 
-    updateChart();
+    showReadings();
   </script>
 </body>
 </html>
