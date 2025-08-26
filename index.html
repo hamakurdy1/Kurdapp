@@ -3,83 +3,140 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>بەرنامەی تۆماری شەکرە</title>
+  <title>تۆماری شەکرە – إصدار حديث</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
     body {
-      font-family: 'Arial', sans-serif;
-      background-color: #f0f4f8;
+      font-family: 'Cairo', sans-serif;
+      background: linear-gradient(to bottom, #e0f7fa, #ffffff);
       margin: 0;
       padding: 1rem;
       color: #333;
     }
+
     h1 {
       text-align: center;
-      color: #2c3e50;
+      color: #00796b;
+      margin-bottom: 1rem;
+      font-size: 1.8rem;
+      text-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
+
     .container {
-      max-width: 500px;
+      max-width: 550px;
       margin: auto;
-      background: white;
-      padding: 1rem;
-      border-radius: 1rem;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background: #ffffffcc;
+      padding: 1.5rem;
+      border-radius: 1.2rem;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     }
+
     label, select, input {
       display: block;
       width: 100%;
-      margin-bottom: 1rem;
+      margin-bottom: 0.8rem;
       font-size: 1rem;
     }
+
     input, select {
-      padding: 0.5rem;
-      border: 1px solid #ccc;
-      border-radius: 0.5rem;
+      padding: 0.7rem;
+      border: 1px solid #b2dfdb;
+      border-radius: 0.7rem;
+      transition: all 0.2s ease;
     }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #00796b;
+      box-shadow: 0 0 8px rgba(0,121,107,0.3);
+    }
+
     .btn {
-      background-color: #3498db;
+      background-color: #00796b;
       color: white;
       border: none;
-      padding: 0.8rem;
+      padding: 0.9rem;
       width: 100%;
       border-radius: 0.8rem;
       font-size: 1.1rem;
       margin-top: 0.5rem;
-      transition: all 0.2s ease-in-out;
+      transition: all 0.3s ease-in-out;
       cursor: pointer;
     }
+
+    .btn:hover {
+      background-color: #004d40;
+      transform: translateY(-2px);
+    }
+
     .btn:active {
       transform: scale(0.97);
-      opacity: 0.85;
+      opacity: 0.9;
     }
+
     .btn.delete-all {
-      background-color: #e74c3c;
+      background-color: #d32f2f;
     }
+
+    .btn.delete-all:hover {
+      background-color: #b71c1c;
+    }
+
     .records {
-      margin-top: 1rem;
+      margin-top: 1.5rem;
     }
+
     .record {
-      padding: 0.7rem;
-      border-bottom: 1px solid #ddd;
-      font-size: 0.95rem;
+      background: #e0f2f1;
+      padding: 1rem;
+      border-radius: 0.8rem;
+      margin-bottom: 0.8rem;
       position: relative;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      transition: transform 0.2s;
     }
+
+    .record:hover {
+      transform: translateY(-2px);
+    }
+
     .record span {
       display: block;
+      margin-bottom: 0.3rem;
     }
-    .low { color: orange; }
-    .prediabetes { color: #d35400; }
-    .normal { color: green; }
-    .high { color: red; }
+
+    .low { color: #f57c00; font-weight: bold; }
+    .prediabetes { color: #e65100; font-weight: bold; }
+    .normal { color: #2e7d32; font-weight: bold; }
+    .high { color: #c62828; font-weight: bold; }
+
     .delete-single {
       position: absolute;
       left: 10px;
       top: 10px;
-      background: #e74c3c;
+      background: #c62828;
       color: white;
       border: none;
       border-radius: 0.5rem;
-      padding: 0.2rem 0.5rem;
+      padding: 0.3rem 0.6rem;
       cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .delete-single:hover {
+      background: #b71c1c;
+      transform: scale(1.05);
+    }
+
+    canvas {
+      margin-top: 2rem;
+      border-radius: 1rem;
+      background: #ffffffdd;
+      padding: 1rem;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     }
   </style>
 </head>
@@ -93,7 +150,7 @@
       <option value="healthy">نەخێر</option>
     </select>
 
-    <label>بە(mg/dL)بنووسه:</label>
+    <label>بە(mg/dL) بنووسه:</label>
     <input type="number" id="sugar" placeholder="نموونە: 110" />
 
     <label>دۆخ:</label>
@@ -106,6 +163,8 @@
     <button class="btn delete-all" onclick="clearAll()">🗑️ سڕینەوەی هەموو تۆمارەکان</button>
 
     <div class="records" id="records"></div>
+
+    <canvas id="sugarChart" width="400" height="250"></canvas>
   </div>
 
   <script>
@@ -113,6 +172,9 @@
     const typeInput = document.getElementById("type");
     const personTypeInput = document.getElementById("personType");
     const recordsDiv = document.getElementById("records");
+    const ctx = document.getElementById('sugarChart').getContext('2d');
+
+    let chart;
 
     function getClassification(value, type, personType) {
       value = parseInt(value);
@@ -121,12 +183,12 @@
       if (personType === "healthy") {
         if (type === "fasting") {
           if (value < 70) result = "low";
-          else if (value <= 99) result = "normal"; // دمجنا healthy مع normal
+          else if (value <= 99) result = "normal";
           else if (value <= 125) result = "prediabetes";
           else result = "high";
         } else {
           if (value < 70) result = "low";
-          else if (value < 140) result = "normal"; // دمجنا healthy مع normal
+          else if (value < 140) result = "normal";
           else if (value <= 199) result = "prediabetes";
           else result = "high";
         }
@@ -141,7 +203,6 @@
           else result = "high";
         }
       }
-
       return result;
     }
 
@@ -170,6 +231,7 @@
 
       sugarInput.value = "";
       showReadings();
+      updateChart();
     }
 
     function showReadings() {
@@ -178,21 +240,14 @@
 
       readings.reverse().forEach((r, i) => {
         const div = document.createElement("div");
-        // وضعنا اللون بناءً على التصنيف
         div.className = "record " + r.classification;
         div.innerHTML = `
           <span><strong>${r.value} mg/dL</strong> - ${r.type}</span>
           <span>👤 ${r.personType}</span>
           <span>📅 ${r.date}</span>
-          <span> ${
-            r.classification === "low"
-              ? "🟠 شەکرەت نزمە"
-              : r.classification === "normal"
-              ? "🟢 شەکرەت ئاساییە"
-              : r.classification === "prediabetes"
-              ? "⚠️ پێش شەکرە"
-              : "🔴 شەکرەت بەرزە"
-          }</span>
+          <span>${ r.classification === "low" ? "🟠 شەکرەت نزمە" :
+                   r.classification === "normal" ? "🟢 شەکرەت ئاساییە" :
+                   r.classification === "prediabetes" ? "⚠️ پێش شەکرە" : "🔴 شەکرەت بەرزە" }</span>
           <button class="delete-single" onclick="deleteReading(${readings.length - 1 - i})">سڕینەوە</button>
         `;
         recordsDiv.appendChild(div);
@@ -204,16 +259,56 @@
       readings.splice(index, 1);
       localStorage.setItem("sugarReadings", JSON.stringify(readings));
       showReadings();
+      updateChart();
     }
 
     function clearAll() {
       if (confirm("ئایه تۆ دڵنیایی لەسڕینەوەی تەواوی تۆمارەکان؟")) {
         localStorage.removeItem("sugarReadings");
         showReadings();
+        updateChart();
       }
     }
 
+    function updateChart() {
+      const readings = JSON.parse(localStorage.getItem("sugarReadings")) || [];
+      const labels = readings.map(r => r.date);
+      const data = readings.map(r => parseInt(r.value));
+
+      if(chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'مستوى السكر (mg/dL)',
+            data: data,
+            fill: true,
+            borderColor: '#00796b',
+            backgroundColor: 'rgba(0,121,107,0.2)',
+            tension: 0.3,
+            pointBackgroundColor: '#004d40',
+            pointRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: true, position: 'top' }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              suggestedMax: 250
+            }
+          }
+        }
+      });
+    }
+
     showReadings();
+    updateChart();
   </script>
 </body>
 </html>
