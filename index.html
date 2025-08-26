@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>تۆماری شەکرە – إصدار حديث</title>
+  <title>تۆماری شەکرە – رسم بیانی</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
@@ -76,61 +76,6 @@
       opacity: 0.9;
     }
 
-    .btn.delete-all {
-      background-color: #d32f2f;
-    }
-
-    .btn.delete-all:hover {
-      background-color: #b71c1c;
-    }
-
-    .records {
-      margin-top: 1.5rem;
-    }
-
-    .record {
-      background: #e0f2f1;
-      padding: 1rem;
-      border-radius: 0.8rem;
-      margin-bottom: 0.8rem;
-      position: relative;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-      transition: transform 0.2s;
-    }
-
-    .record:hover {
-      transform: translateY(-2px);
-    }
-
-    .record span {
-      display: block;
-      margin-bottom: 0.3rem;
-    }
-
-    .low { color: #f57c00; font-weight: bold; }
-    .prediabetes { color: #e65100; font-weight: bold; }
-    .normal { color: #2e7d32; font-weight: bold; }
-    .high { color: #c62828; font-weight: bold; }
-
-    .delete-single {
-      position: absolute;
-      left: 10px;
-      top: 10px;
-      background: #c62828;
-      color: white;
-      border: none;
-      border-radius: 0.5rem;
-      padding: 0.3rem 0.6rem;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: all 0.2s ease;
-    }
-
-    .delete-single:hover {
-      background: #b71c1c;
-      transform: scale(1.05);
-    }
-
     canvas {
       margin-top: 2rem;
       border-radius: 1rem;
@@ -160,9 +105,7 @@
     </select>
 
     <button class="btn" onclick="saveReading()">💾 هەڵگردن</button>
-    <button class="btn delete-all" onclick="clearAll()">🗑️ سڕینەوەی هەموو تۆمارەکان</button>
-
-    <div class="records" id="records"></div>
+    <button class="btn" onclick="clearAll()">🗑️ سڕینەوەی هەموو تۆمارەکان</button>
 
     <canvas id="sugarChart" width="400" height="250"></canvas>
   </div>
@@ -171,7 +114,6 @@
     const sugarInput = document.getElementById("sugar");
     const typeInput = document.getElementById("type");
     const personTypeInput = document.getElementById("personType");
-    const recordsDiv = document.getElementById("records");
     const ctx = document.getElementById('sugarChart').getContext('2d');
 
     let chart;
@@ -214,66 +156,21 @@
       if (!value) return alert("تکایه ڕێژەکە بنووسە");
       if (value < 20 || value > 600) return alert("تکایه ڕێژەکە لەنێوان 20 و 600 بنووسه");
 
-      const date = new Date().toLocaleString("ar-EG");
-      const classification = getClassification(value, type, personType);
-
-      const record = {
-        value,
-        type: type === "fasting" ? "بەڕۆژووبوون" : "دووکاتژمێر دوای نان",
-        personType: personType === "healthy" ? "شەکرەی نییە" : "شەکرەی هەیە",
-        date,
-        classification
-      };
+      const date = new Date().toLocaleTimeString("ar-EG", {hour: '2-digit', minute:'2-digit'});
+      const record = { value: parseInt(value), date, type, personType };
 
       let readings = JSON.parse(localStorage.getItem("sugarReadings")) || [];
       readings.push(record);
       localStorage.setItem("sugarReadings", JSON.stringify(readings));
 
       sugarInput.value = "";
-      showReadings();
       updateChart();
-    }
-
-    function showReadings() {
-      const readings = JSON.parse(localStorage.getItem("sugarReadings")) || [];
-      recordsDiv.innerHTML = "";
-
-      readings.reverse().forEach((r, i) => {
-        const div = document.createElement("div");
-        div.className = "record " + r.classification;
-        div.innerHTML = `
-          <span><strong>${r.value} mg/dL</strong> - ${r.type}</span>
-          <span>👤 ${r.personType}</span>
-          <span>📅 ${r.date}</span>
-          <span>${ r.classification === "low" ? "🟠 شەکرەت نزمە" :
-                   r.classification === "normal" ? "🟢 شەکرەت ئاساییە" :
-                   r.classification === "prediabetes" ? "⚠️ پێش شەکرە" : "🔴 شەکرەت بەرزە" }</span>
-          <button class="delete-single" onclick="deleteReading(${readings.length - 1 - i})">سڕینەوە</button>
-        `;
-        recordsDiv.appendChild(div);
-      });
-    }
-
-    function deleteReading(index) {
-      let readings = JSON.parse(localStorage.getItem("sugarReadings")) || [];
-      readings.splice(index, 1);
-      localStorage.setItem("sugarReadings", JSON.stringify(readings));
-      showReadings();
-      updateChart();
-    }
-
-    function clearAll() {
-      if (confirm("ئایه تۆ دڵنیایی لەسڕینەوەی تەواوی تۆمارەکان؟")) {
-        localStorage.removeItem("sugarReadings");
-        showReadings();
-        updateChart();
-      }
     }
 
     function updateChart() {
       const readings = JSON.parse(localStorage.getItem("sugarReadings")) || [];
       const labels = readings.map(r => r.date);
-      const data = readings.map(r => parseInt(r.value));
+      const data = readings.map(r => r.value);
 
       if(chart) chart.destroy();
 
@@ -298,16 +195,19 @@
             legend: { display: true, position: 'top' }
           },
           scales: {
-            y: {
-              beginAtZero: true,
-              suggestedMax: 250
-            }
+            y: { beginAtZero: true, suggestedMax: 250 }
           }
         }
       });
     }
 
-    showReadings();
+    function clearAll() {
+      if (confirm("ئایه تۆ دڵنیایی لەسڕینەوەی تەواوی تۆمارەکان؟")) {
+        localStorage.removeItem("sugarReadings");
+        updateChart();
+      }
+    }
+
     updateChart();
   </script>
 </body>
